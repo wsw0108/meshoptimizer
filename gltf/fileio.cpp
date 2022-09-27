@@ -4,6 +4,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__linux__)
+#include <fcntl.h>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#else
+#include <fstream>
+#include <iostream>
+#endif
 
 #ifdef _WIN32
 #include <io.h>
@@ -12,7 +21,7 @@
 #endif
 
 TempFile::TempFile()
-	: fd(-1)
+    : fd(-1)
 {
 }
 
@@ -137,4 +146,25 @@ bool writeFile(const char* path, const std::string& data)
 	int rc = fclose(file);
 
 	return rc == 0 && result == data.size();
+}
+
+bool copyFile(const char* from, const char* to)
+{
+#if defined(__linux__)
+	int s = open(from, O_RDONLY, 0);
+	int d = open(to, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	struct stat st;
+	fstat(s, &st);
+	sendfile(d, s, 0, st.st_size);
+	close(s);
+	close(d);
+	return true;
+#else
+	std::ifstream is(from, std::ios::binary);
+	std::ofstream os(to, std::ios::binary);
+	os << is.rdbuf();
+	is.close();
+	os.close();
+	return true;
+#endif
 }

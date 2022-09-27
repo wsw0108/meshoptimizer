@@ -481,7 +481,7 @@ static void process(cgltf_data* data, const char* input_path, const char* output
 		}
 		else
 		{
-			writeImage(json_images, views, image, images[i], i, input_path, settings);
+			writeImage(json_images, views, image, images[i], i, input_path, output_path, settings);
 		}
 		append(json_images, "}");
 	}

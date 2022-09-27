@@ -849,16 +849,27 @@ void writeSampler(std::string& json, const cgltf_sampler& sampler)
 	}
 }
 
-void writeImage(std::string& json, std::vector<BufferView>& views, const cgltf_image& image, const ImageInfo& info, size_t index, const char* input_path, const Settings& settings)
+void writeImage(std::string& json, std::vector<BufferView>& views, const cgltf_image& image, const ImageInfo& info, size_t index, const char* input_path, const char* output_path, const Settings& settings)
 {
 	bool dataUri = image.uri && strncmp(image.uri, "data:", 5) == 0;
 
-	if (image.uri && !dataUri && !settings.texture_embed)
+	if (image.uri && !dataUri && !settings.texture_embed && output_path)
 	{
 		// fast-path: we don't need to read the image to memory
-		append(json, "\"uri\":\"");
-		append(json, image.uri);
-		append(json, "\"");
+		std::string img_input_path = getFullPath(decodeUri(image.uri).c_str(), input_path);
+		std::string img_uri = getFileName(image.uri) + getExtension(image.uri);
+		std::string img_output_path = getFullPath(decodeUri(img_uri.c_str()).c_str(), output_path);
+		if (copyFile(img_input_path.c_str(), img_output_path.c_str()))
+		{
+			append(json, "\"uri\":\"");
+			append(json, img_uri);
+			append(json, "\"");
+		}
+		else
+		{
+			fprintf(stderr, "Warning: unable to copy image %s, skipping\n", image.uri);
+		}
+
 		return;
 	}
 
@@ -1405,7 +1416,8 @@ void writeAnimation(std::string& json, std::vector<BufferView>& views, std::stri
 
 		comma(json_samplers);
 		append(json_samplers, "{\"input\":");
-		append(json_samplers, range ? range_accr : track.constant ? pose_accr : time_accr);
+		append(json_samplers, range ? range_accr : track.constant ? pose_accr
+		                                                          : time_accr);
 		append(json_samplers, ",\"output\":");
 		append(json_samplers, data_accr);
 		if (track.interpolation == cgltf_interpolation_type_step)
